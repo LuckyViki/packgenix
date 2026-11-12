@@ -186,13 +186,18 @@
     });
   }
 
-  /* ---------- Contact form: enable fields the runtime leaves disabled ---------- */
+  /* ---------- Contact form: enable fields the runtime leaves disabled ----------
+     The AllinCMS form wraps its controls in a <fieldset disabled> that sits
+     OUTSIDE the <form> element, so enabling only the inputs is not enough:
+     a disabled fieldset keeps every descendant disabled. Remove disabled
+     from the fieldset and from every control, page-wide (the only disabled
+     controls on this site are the inquiry form's). Also clear the Base UI
+     data-disabled styling hook so the submit button looks enabled. */
   function enableForms() {
-    var forms = document.querySelectorAll("form");
-    for (var i = 0; i < forms.length; i++) {
-      var fields = forms[i].querySelectorAll("input[disabled], textarea[disabled], select[disabled], button[disabled]");
-      for (var j = 0; j < fields.length; j++) fields[j].removeAttribute("disabled");
-    }
+    var fields = document.querySelectorAll("input[disabled], textarea[disabled], select[disabled], button[disabled], fieldset[disabled]");
+    for (var j = 0; j < fields.length; j++) fields[j].removeAttribute("disabled");
+    var dd = document.querySelectorAll("form [data-disabled], fieldset[data-disabled]");
+    for (var k = 0; k < dd.length; k++) dd[k].removeAttribute("data-disabled");
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enableForms);
