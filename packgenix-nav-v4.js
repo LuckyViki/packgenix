@@ -1,9 +1,12 @@
-/* packgenix-nav.js — plain-JS navigation and form fallback for the Packgenix
-   static site. The AllinCMS runtime (Base UI) does not hydrate on the static
-   host, so its dropdowns, mobile sheet and contact dialog never open. This
-   script replaces those three interactions with dependency-free code, and
-   enables the contact form fields that the runtime leaves disabled.
-   Loaded with `defer` on every page (see patch_forms.py). */
+/* packgenix-nav-v4.js — plain-JS navigation and form fallback for the
+   Packgenix static site. The AllinCMS runtime (Base UI) now hydrates on the
+   live site, so its own sheet/modal/dropdown can open instead of ours — and
+   it re-renders the header buttons, detaching listeners attached directly
+   to them, and its sheet does not close after a link is tapped. This script
+   therefore takes over the three interactions through a document-level
+   capture listener (which survives re-renders and runs before React's
+   handlers), and enables the contact form fields that the runtime leaves
+   disabled. Loaded with `defer` on every page (see patch_forms.py). */
 (function () {
   "use strict";
 
@@ -35,7 +38,8 @@
     if (!menuOpen) return;
     menuOpen = false;
     if (menu) menu.style.display = "none";
-    if (trigger) trigger.setAttribute("aria-expanded", "false");
+    var t = document.querySelector('button[data-slot="dropdown-menu-trigger"]') || trigger;
+    if (t) t.setAttribute("aria-expanded", "false");
     document.removeEventListener("click", onDocClick, true);
   }
 
@@ -44,7 +48,7 @@
     closeMenu();
   }
 
-  function openMenu() {
+  function openMenu(btn) {
     if (!menu) {
       menu = el("div", {
         position: "fixed", zIndex: "100", display: "none",
@@ -73,7 +77,8 @@
       });
       document.body.appendChild(menu);
     }
-    var r = trigger.getBoundingClientRect();
+    var btnEl = btn || document.querySelector('button[data-slot="dropdown-menu-trigger"]') || trigger;
+    var r = btnEl.getBoundingClientRect();
     menu.style.visibility = "hidden";
     menu.style.display = "block";
     var w = menu.offsetWidth;
@@ -82,22 +87,14 @@
     menu.style.top = (r.bottom + 6) + "px";
     menu.style.visibility = "";
     menuOpen = true;
-    trigger.setAttribute("aria-expanded", "true");
+    btnEl.setAttribute("aria-expanded", "true");
     document.addEventListener("click", onDocClick, true);
   }
 
-  if (trigger) {
-    trigger.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (menuOpen) closeMenu();
-      else openMenu();
-    });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { closeMenu(); closeSheet(); }
-    });
-    window.addEventListener("resize", closeMenu);
-  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closeMenu(); closeSheet(); }
+  });
+  window.addEventListener("resize", closeMenu);
 
   /* ---------- Mobile menu (hamburger sheet replacement) ---------- */
   var burger = document.querySelector('button[data-slot="sheet-trigger"]');
@@ -109,7 +106,8 @@
     if (sheetOverlay) sheetOverlay.style.display = "none";
     if (sheetPanel) sheetPanel.style.display = "none";
     document.body.style.overflow = "";
-    if (burger) burger.setAttribute("aria-expanded", "false");
+    var b = document.querySelector('button[data-slot="sheet-trigger"]') || burger;
+    if (b) b.setAttribute("aria-expanded", "false");
   }
 
   function openSheet() {
@@ -163,7 +161,7 @@
         background: "#D5995D", color: "#ffffff", fontSize: "16px", fontWeight: "600",
         padding: "14px", borderRadius: "10px", textDecoration: "none", cursor: "pointer"
       }, "GET A QUOTE");
-      cta.href = "/contact";
+      cta.href = "#contact-dialog-form-modal-1";
       cta.addEventListener("click", closeSheet);
       sheetPanel.appendChild(cta);
 
@@ -174,17 +172,11 @@
     sheetPanel.style.display = "block";
     document.body.style.overflow = "hidden";
     sheetOpen = true;
-    if (burger) burger.setAttribute("aria-expanded", "true");
+    var b = document.querySelector('button[data-slot="sheet-trigger"]') || burger;
+    if (b) b.setAttribute("aria-expanded", "true");
   }
 
-  if (burger) {
-    burger.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (sheetOpen) closeSheet();
-      else openSheet();
-    });
-  }
+
 
   /* ---------- Contact form: enable fields the runtime leaves disabled ----------
      The AllinCMS form wraps its controls in a <fieldset disabled> that sits
@@ -324,14 +316,23 @@
     modalOpen = true;
   }
 
-  var ctas = document.querySelectorAll('a[href="#contact-dialog-form-modal-1"]');
-  for (var k = 0; k < ctas.length; k++) {
-    ctas[k].addEventListener("click", function (e) {
-      e.preventDefault();
-      openModal();
-    });
-  }
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") closeModal();
   });
+
+  /* ---------- Take over the three interactions via capture delegation ----
+     A document-level capture listener survives React re-rendering the
+     header buttons and runs before React's own handlers, so we stop the
+     event there and open our own UI. This keeps the mobile sheet closing
+     after a link tap and the quote popup using the short 4-field form. */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var b = t.closest('button[data-slot="sheet-trigger"]');
+    if (b) { e.preventDefault(); e.stopPropagation(); if (sheetOpen) closeSheet(); else openSheet(); return; }
+    var c = t.closest('a[href="#contact-dialog-form-modal-1"]');
+    if (c) { e.preventDefault(); e.stopPropagation(); closeSheet(); closeMenu(); openModal(); return; }
+    var d = t.closest('button[data-slot="dropdown-menu-trigger"]');
+    if (d) { e.preventDefault(); e.stopPropagation(); if (menuOpen) closeMenu(); else openMenu(d); return; }
+  }, true);
 })();
