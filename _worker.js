@@ -5,7 +5,7 @@
  *
  * POST /api/contact — JSON or form-encoded inquiry, sends to
  * export@packgenix.com via Resend (needs the RESEND_API_KEY secret and
- * the packgenix.com domain verified in Resend).
+ * the send.packgenix.com domain verified in Resend).
  * POST /contact — no-JS fallback for the contact page form, returns a
  * thank-you HTML page.
  * /home or /home/ — 301 to / (Pages _redirects is not applied in
@@ -93,7 +93,7 @@ async function sendInquiry(env, inq) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Packgenix Website <website@packgenix.com>",
+        from: "Packgenix Website <website@send.packgenix.com>",
         to: ["export@packgenix.com"],
         reply_to: inq.email,
         subject: subject,
