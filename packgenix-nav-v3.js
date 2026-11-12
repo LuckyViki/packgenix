@@ -207,15 +207,131 @@
   /* Re-run shortly after load in case the runtime re-renders the form. */
   setTimeout(enableForms, 1200);
 
-  /* ---------- GET A QUOTE: fall back to /contact if no dialog opens ---------- */
+  /* ---------- GET A QUOTE modal (replaces the dead AllinCMS dialog) ----------
+     Clicking any GET A QUOTE button opens our own dialog with the inquiry
+     form (same fields as the Contact page). The form is a real <form>, so
+     packgenix-form.js intercepts its submit and posts to /api/contact. */
+  var modalOverlay = null, modalOpen = false;
+
+  function closeModal() {
+    if (!modalOpen) return;
+    modalOpen = false;
+    if (modalOverlay) modalOverlay.style.display = "none";
+    document.body.style.overflow = "";
+    /* If the form was replaced by a thank-you message after a successful
+       submit, drop the whole modal so the next open builds a fresh form. */
+    if (modalOverlay && !document.getElementById("pg-quote-form")) {
+      modalOverlay.remove();
+      modalOverlay = null;
+    }
+  }
+
+  function inputStyle() {
+    return {
+      width: "100%", boxSizing: "border-box", padding: "10px 12px",
+      border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "15px",
+      color: "#0f172a", background: "#ffffff", marginBottom: "14px", outline: "none"
+    };
+  }
+
+  function buildModal() {
+    modalOverlay = el("div", {
+      position: "fixed", top: "0", left: "0", right: "0", bottom: "0",
+      background: "rgba(15,23,42,.55)", zIndex: "200", display: "none",
+      alignItems: "center", justifyContent: "center", padding: "16px"
+    });
+    modalOverlay.addEventListener("click", function (e) {
+      if (e.target === modalOverlay) closeModal();
+    });
+    var dialog = el("div", {
+      background: "#ffffff", borderRadius: "16px", maxWidth: "480px", width: "100%",
+      maxHeight: "90vh", overflowY: "auto", padding: "28px",
+      boxShadow: "0 24px 64px rgba(15,23,42,.25)"
+    });
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-label", "Send the details");
+    var head = el("div", {
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      marginBottom: "6px"
+    });
+    head.appendChild(el("span", { fontSize: "22px", fontWeight: "700", color: "#0f172a" }, "Send the details"));
+    var x = el("button", {
+      width: "36px", height: "36px", borderRadius: "50%", border: "1px solid #e2e8f0",
+      background: "#ffffff", color: "#0f172a", fontSize: "18px", lineHeight: "1",
+      cursor: "pointer", flexShrink: "0"
+    }, "\u00d7");
+    x.setAttribute("aria-label", "Close");
+    x.addEventListener("click", closeModal);
+    head.appendChild(x);
+    dialog.appendChild(head);
+    dialog.appendChild(el("p", {
+      fontSize: "14px", lineHeight: "1.6", color: "#475569", margin: "0 0 20px"
+    }, "Tell us about your product and packaging needs, and we'll reply with a tailored quote."));
+    var form = document.createElement("form");
+    form.id = "pg-quote-form";
+    form.method = "post";
+    var fields = [
+      { label: "Name *", name: "name", type: "text", ph: "Your name", tag: "input" },
+      { label: "Email *", name: "email", type: "email", ph: "you@example.com", tag: "input" },
+      { label: "Phone *", name: "phone", type: "text", ph: "+1 555 0000", tag: "input" },
+      { label: "Message *", name: "message", type: "", ph: "Product, material, filling weight, package size, required speed\u2026", tag: "textarea" }
+    ];
+    fields.forEach(function (f) {
+      var lab = el("label", {
+        display: "block", fontSize: "13px", fontWeight: "600", color: "#0f172a",
+        marginBottom: "6px"
+      }, f.label);
+      lab.setAttribute("for", "pg-" + f.name);
+      form.appendChild(lab);
+      var inp;
+      if (f.tag === "textarea") {
+        inp = el("textarea", inputStyle());
+        inp.rows = 4;
+      } else {
+        inp = el("input", inputStyle());
+        inp.type = f.type;
+      }
+      inp.id = "pg-" + f.name;
+      inp.name = f.name;
+      inp.placeholder = f.ph;
+      inp.required = true;
+      form.appendChild(inp);
+    });
+    var submit = el("button", {
+      width: "100%", background: "#D5995D", color: "#ffffff", fontSize: "16px",
+      fontWeight: "600", padding: "14px", borderRadius: "10px", border: "none",
+      cursor: "pointer", marginTop: "4px"
+    }, "Get a Free Quote");
+    submit.type = "submit";
+    form.appendChild(submit);
+    dialog.appendChild(form);
+    var foot = el("p", {
+      fontSize: "12px", lineHeight: "1.6", color: "#94a3b8", margin: "14px 0 0", textAlign: "center"
+    }, "Or email us directly: ");
+    var mail = el("a", { color: "#2563eb", textDecoration: "none", cursor: "pointer" }, "export@packgenix.com");
+    mail.href = "mailto:export@packgenix.com";
+    foot.appendChild(mail);
+    dialog.appendChild(foot);
+    modalOverlay.appendChild(dialog);
+    document.body.appendChild(modalOverlay);
+  }
+
+  function openModal() {
+    if (!modalOverlay) buildModal();
+    modalOverlay.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    modalOpen = true;
+  }
+
   var ctas = document.querySelectorAll('a[href="#contact-dialog-form-modal-1"]');
   for (var k = 0; k < ctas.length; k++) {
-    ctas[k].addEventListener("click", function () {
-      setTimeout(function () {
-        if (!document.querySelector('[role="dialog"]')) {
-          window.location.href = "/contact";
-        }
-      }, 800);
+    ctas[k].addEventListener("click", function (e) {
+      e.preventDefault();
+      openModal();
     });
   }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeModal();
+  });
 })();
