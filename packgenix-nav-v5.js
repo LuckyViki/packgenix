@@ -153,7 +153,7 @@
       navLink("Home", "/");
       navLink("Products", "/products/", false, true);
       NAV.slice(1).forEach(function (item) { navLink(item.label, item.href, true); });
-      navLink("News", "/posts?category=news");
+      navLink("Resources", "/posts?category=news");
       navLink("About Us", "/about");
       navLink("Contact", "/contact");
       var cta = el("a", {
